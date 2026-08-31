@@ -97,6 +97,7 @@ extern void tracer_trace_info(void *t, unsigned int plctl, unsigned int info,\
 extern void tracer_trace_on(void *t);
 extern void tracer_discard(void *t);
 extern void tracer_overflow(void *t);
+extern void tracer_branch_future_flush(void *t);
 extern void tracer_ts(void *t, unsigned long long timestamp, int have_cc, unsigned int count,\
                       int nr_replace);
 extern void tracer_exception(void *t, int type);

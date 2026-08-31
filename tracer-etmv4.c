@@ -136,6 +136,11 @@ void tracer_overflow(void *t)
     CURR_SPEC_DEPTH(tracer) = 0;
 }
 
+void tracer_branch_future_flush(void *t)
+{
+    OUTPUT("Branch future flush\n");
+}
+
 void tracer_ts(void *t, unsigned long long timestamp, int have_cc, unsigned int count,  \
                int nr_replace)
 {
