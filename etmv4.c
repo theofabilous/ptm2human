@@ -21,6 +21,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <stdio.h>
+#include <string.h>
 #include "log.h"
 #include "tracer.h"
 #include "stream.h"
@@ -1338,6 +1339,9 @@ int etmv4_synchronization(struct stream *stream)
 {
     int i, p, j;
     unsigned char c;
+    unsigned char async_packet_buf[12] = { 0 };
+
+    async_packet_buf[11] = 128;
 
     LOGD("MAX_SPEC_DEPTH = %d\n", MAX_SPEC_DEPTH(&(stream->tracer)));
     LOGD("P0_KEY_MAX = %d\n", P0_KEY_MAX(&(stream->tracer)));
@@ -1345,36 +1349,35 @@ int etmv4_synchronization(struct stream *stream)
     LOGD("CONDTYPE = %d\n", CONDTYPE(&(stream->tracer)));
     LOGD("COMMOPT = %d\n", COMMOPT(&(stream->tracer)));
 
+    if (stream->buff_len < 12) {
+        LOGE("Stream too short to fit A-Sync packet\n");
+        return -1;
+    }
+
     /* locate an async packet and search for a trace-info packet */
-    for (i = 0; i < stream->buff_len; i++) {
-        c = stream->buff[i];
-        if ((c & PKT_NAME(extension).mask) == PKT_NAME(extension).val) {
-            p = DECODE_FUNC_NAME(extension)((const unsigned char *)&(stream->buff[i]), stream);
-            if (p != 12)
-                continue;
-            for (j=12; j<16; j++) {
-                c = stream->buff[i + j];
-                if ((c & PKT_NAME(trace_info).mask) == PKT_NAME(trace_info).val) {
-                    p = DECODE_FUNC_NAME(trace_info)((const unsigned char *)&(stream->buff[i + j]), stream);
-                    if (p > 0) {
-                        /* SYNCING -> INSYNC */
-                        stream->state++;
+    for (i = 0; i < stream->buff_len-12; i++) {
+        if (memcmp(async_packet_buf, stream->buff + i, 12) != 0) continue;
+        for (j=12; j<16; j++) {
+            c = stream->buff[i + j];
+            if ((c & PKT_NAME(trace_info).mask) == PKT_NAME(trace_info).val) {
+                p = DECODE_FUNC_NAME(trace_info)((const unsigned char *)&(stream->buff[i + j]), stream);
+                if (p > 0) {
+                    /* SYNCING -> INSYNC */
+                    stream->state++;
 
-                        RESET_ADDRESS_REGISTER(&(stream->tracer));
+                    RESET_ADDRESS_REGISTER(&(stream->tracer));
 
-                        return i+j;
-                    }
+                    return i+j;
                 }
             }
-
-            /*
-             * If reach here, there is no trace info packet found.
-             * According to IHI0064C_etm_v4_architecture_spec:
-             * ARM recommends that the Trace Info packet appears in the trace
-             * stream soon after the A-Sync packet.
-             */
-            LOGE("No trace info packet right after an a-sync packet\n");
         }
+        /*
+         * If reach here, there is no trace info packet found.
+         * According to IHI0064C_etm_v4_architecture_spec:
+         * ARM recommends that the Trace Info packet appears in the trace
+         * stream soon after the A-Sync packet.
+         */
+        LOGE("No trace info packet right after an a-sync packet\n");
     }
 
     return -1;
