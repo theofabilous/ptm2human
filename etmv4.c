@@ -122,8 +122,8 @@ DECL_DECODE_FN(extension)
         break;
 
     default:
-        LOGE("First payload byte of async is not correct\n");
-        LOGE("Invalid async packet\n");
+        LOGE("Unrecognized extension payload byte: %hhu (%hhX)\n", pkt[index], pkt[index]);
+        LOGE("Invalid extension packet\n");
         index = -1;
         break;
     }
