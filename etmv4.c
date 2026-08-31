@@ -121,6 +121,12 @@ DECL_DECODE_FN(extension)
         tracer_overflow(&(stream->tracer));
         break;
 
+    case 7:
+        /* branch future flush */
+        LOGD("[branch future flush]\n");
+        tracer_branch_future_flush(&(stream->tracer));
+        break;
+
     default:
         LOGE("Unrecognized extension payload byte: %hhu (%hhX)\n", pkt[index], pkt[index]);
         LOGE("Invalid extension packet\n");
