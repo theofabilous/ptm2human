@@ -93,7 +93,7 @@ static int takeleb128(const unsigned char *buff, int *index, int max_bytes, unsi
     unsigned long long data = 0;
 
     for (i = 0; i < max_bytes; i++) {
-        c = buff[i + offs];
+        c = buff[offs++];
         data |= (c & ~c_bit) << (7 * i);
         if (!(c & c_bit)) {
             break;
@@ -101,7 +101,7 @@ static int takeleb128(const unsigned char *buff, int *index, int max_bytes, unsi
     }
 
     *out = data;
-    *index += i;
+    *index = offs;
     return i;
 }
 
