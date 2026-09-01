@@ -17,7 +17,7 @@ $(BUILD_DIR):
 
 # Putting $(HEADERS) as a pre-req here is suboptimal. This if fine for now
 # but eventually we could add separate preprocessing steps to mitigate this
-$(OBJECTS): $(BUILD_DIR)/%.o: %.c $(BUILD_DIR) $(HEADERS)
+$(OBJECTS): $(BUILD_DIR)/%.o: %.c $(HEADERS) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 exe: $(BUILD_DIR)/ptm2human
