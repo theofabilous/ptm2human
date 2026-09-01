@@ -1,3 +1,7 @@
+zig-out
+.zig-cache
+zig-pkg
+
 # autotools generated
 .deps/
 Makefile.in
