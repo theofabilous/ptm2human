@@ -158,7 +158,6 @@ DECL_DECODE_FN(trace_info)
 {
     int index = 1, i;
     unsigned int plctl = 0, info = 0, key = 0, spec = 0, cyct = 0;
-    unsigned char data;
 
     i = takeleb128(pkt, &index, 4, &plctl);
     if (i >= 1) {
@@ -312,7 +311,6 @@ DECL_DECODE_FN(cc_format_1)
 {
     int index = 0, i;
     int u_bit = pkt[index++] & 1;
-    unsigned char data;
     unsigned int commit = 0, count = 0;
 
     if (!COMMOPT(&(stream->tracer))) {
@@ -419,7 +417,6 @@ DECL_DECODE_FN(commit)
 DECL_DECODE_FN(cancel)
 {
     int index = 0, i;
-    unsigned char data;
     unsigned int cancel = 0;
 
     if (!(pkt[index] & 0x10)) {
@@ -492,7 +489,6 @@ DECL_DECODE_FN(mispredict)
 DECL_DECODE_FN(cond_inst_format_1)
 {
     int index = 1, i;
-    unsigned char data;
     unsigned int key = 0;
 
     i = takeleb128(pkt, &index, 4, &key);
@@ -544,7 +540,6 @@ DECL_DECODE_FN(cond_flush)
 DECL_DECODE_FN(cond_result_format_1)
 {
     int index = 0, nr_payloads, payload, i;
-    unsigned char data;
     unsigned int CI, RESULT, KEY, keytop;
 
     nr_payloads = (pkt[index++] & 0x4)? 1: 2;
@@ -1132,9 +1127,8 @@ DECL_DECODE_FN(atom_format_6_12)
 
 DECL_DECODE_FN(q)
 {
-    int index = 0, type, IS, count_unknown = 0, i;
+    int index = 0, type, IS, count_unknown = 0;
     unsigned long long address;
-    unsigned char data;
     unsigned int COUNT, counttop;
 
     type = pkt[index++] & 0x0f;
@@ -1202,7 +1196,7 @@ DECL_DECODE_FN(q)
 
     if (!count_unknown) {
         COUNT = 0;
-        i = takeleb128(pkt, &index, 5, &counttop);
+        (void)takeleb128(pkt, &index, 5, &counttop);
         COUNT |= counttop << 3;
     }
 
