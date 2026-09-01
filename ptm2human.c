@@ -51,12 +51,13 @@ static const struct option options[] =
     { "trcidr13", 1, 0, '3' },
     { "decode-etmv4", 0, 0, 'e' },
     { "unformatted", 0, 0, 'n' },
+    { "preset", 1, 0, 'P' },
     { "debuglog", 0, 0, 'd' },
     { "help", 0, 0, 'h' },
     { NULL, 0, 0, 0   },
 };
 
-static const char *optstring = "i:c:Cp0:8:9:2:3:edhun";
+static const char *optstring = "i:c:Cp0:8:9:2:3:P:edhun";
 
 void usage(void)
 {
@@ -73,7 +74,8 @@ void usage(void)
     printf("  -8|--trcidr8 <TRCIDR8 value>            Give the value of TRCIDR8 which indicates max speculation depth\n");
     printf("  -9|--trcidr9 <TRCIDR9 value>            Give the value of TRCIDR9 which indicates the number of P0 right-hand keys\n");
     printf("  -2|--trcidr12 <TRCIDR12 value>          Give the value of TRCIDR12 which indicates the number of right-hand keys for cond-inst elements\n");
-    printf("  -3|--trcidr13 <TRCIDR13 value>          Give the value of TRCIDR13 which indicates the number of special right-hand keys for cond-inst elements\n\n");
+    printf("  -3|--trcidr13 <TRCIDR13 value>          Give the value of TRCIDR13 which indicates the number of special right-hand keys for cond-inst elements\n");
+    printf("  -P|--preset <preset name>               Apply TRCIDR<n> values using the trace configuration preset named by <preset name>\n\n");
     printf("  -d|--debuglog                           Enable debug messages\n");
     printf("  -h|--help                               Show help messages\n");
 }
@@ -124,20 +126,6 @@ int main(int argc, char **argv)
     setbuf(stdout, NULL);
 
     memset(&stream, 0, sizeof(struct stream));
-
-#if 1
-    /* Preset for RP2350 / ARM Cortex M33, based on TRCIDRn registers. */
-    /* TRCIDR0 */
-    CONDTYPE(&(stream.tracer)) = (0x280006e1ul & 0x00003000ul) >> 12;
-    COMMOPT(&(stream.tracer))  = (0x280006e1ul & 0x20000000ul) >> 29;
-    /* TRCIDR8 */
-    MAX_SPEC_DEPTH(&(stream.tracer)) = 0;
-    /* TRCIDR9 */
-    P0_KEY_MAX(&(stream.tracer)) = 0;
-    /* TRCIDR12-13 */
-    trcidr12 = 1;
-    trcidr13 = 0;
-#endif
 
     for (;;) {
         c = getopt_long(argc, argv, optstring, options, &longindex);
@@ -232,6 +220,24 @@ int main(int argc, char **argv)
                 LOGE("Invalid argument %s\n", optarg);
             } else {
                 trcidr13 = val;
+            }
+            break;
+
+        case 'P':
+            if (strcmp(optarg, "rp2350") == 0) {
+                /* Preset for RP2350 / ARM Cortex M33, based on TRCIDRn registers. */
+                /* TRCIDR0 */
+                CONDTYPE(&(stream.tracer)) = (0x280006e1ul & 0x00003000ul) >> 12;
+                COMMOPT(&(stream.tracer))  = (0x280006e1ul & 0x20000000ul) >> 29;
+                /* TRCIDR8 */
+                MAX_SPEC_DEPTH(&(stream.tracer)) = 0;
+                /* TRCIDR9 */
+                P0_KEY_MAX(&(stream.tracer)) = 0;
+                /* TRCIDR12-13 */
+                trcidr12 = 1;
+                trcidr13 = 0;
+            } else {
+                LOGE("Unknown preset name '%s'\n", optarg);
             }
             break;
 
