@@ -86,6 +86,22 @@ DEF_TRACEPKT(atom_format_6_11, 0xf0, 0xc0);
 DEF_TRACEPKT(atom_format_6_12, 0xf0, 0xe0);
 DEF_TRACEPKT(q, 0xf0, 0xa0);
 
+static int takeleb128(const unsigned char *buff, int *index, int max_bytes, unsigned int *out)
+{
+    int i, offs = *index;
+    unsigned char c = c_bit;
+    unsigned long long data = 0;
+
+    for (i = 0; i < max_bytes && (c & c_bit); i++) {
+        c = buff[i + offs];
+        data |= (c & ~c_bit) << (7 * i);
+    }
+
+    *out = data;
+    *index += i;
+    return i;
+}
+
 DECL_DECODE_FN(extension)
 {
     int index = 1, cnt;
@@ -144,14 +160,7 @@ DECL_DECODE_FN(trace_info)
     unsigned int plctl = 0, info = 0, key = 0, spec = 0, cyct = 0;
     unsigned char data;
 
-    /* TODO: refactor the following code into a reusable function */
-    for (i = 0; i < 4; i++) {
-        data = pkt[index++];
-        plctl |= (data & ~c_bit) << (7 * i);
-        if (!(data & c_bit)) {
-            break;
-        }
-    }
+    i = takeleb128(pkt, &index, 4, &plctl);
     if (i >= 1) {
         LOGE("More than 1 PLCTL field in the trace info packet\n");
         return -1;
@@ -159,13 +168,7 @@ DECL_DECODE_FN(trace_info)
 
     if (plctl & 1) {
         /* the INFO section is present*/
-        for (i = 0; i < 4; i++) {
-            data = pkt[index++];
-            info |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 4, &info);
         if (i >= 1) {
             LOGE("More than 1 INFO field in the trace info packet\n");
             return -1;
@@ -173,14 +176,9 @@ DECL_DECODE_FN(trace_info)
     }
 
     if (plctl & 2) {
+        /* TODO: take into account nump0key */
         /* the KEY section is present*/
-        for (i = 0; i < 4; i++) {
-            data = pkt[index++];
-            key |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 4, &key);
         if (i >= 4) {
             /* 4 fileds are enough since p0_key_max is a 32-bit integer */
             LOGE("More than 4 KEY fields in the trace info packet\n");
@@ -190,13 +188,7 @@ DECL_DECODE_FN(trace_info)
 
     if (plctl & 4) {
         /* the SPEC section is present*/
-        for (i = 0; i < 4; i++) {
-            data = pkt[index++];
-            spec |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 4, &spec);
         if (i >= 4) {
             /* 4 fileds are enough since max_spec_depth is a 32-bit integer */
             LOGE("More than 4 SPEC fields in the trace info packet\n");
@@ -206,13 +198,7 @@ DECL_DECODE_FN(trace_info)
 
     if (plctl & 8) {
         /* the CYCT section is present*/
-        for (i = 0; i < 2; i++) {
-            data = pkt[index++];
-            cyct |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 2, &spec);
         if (i >= 2) {
             LOGE("More than 2 CYCT fields in the trace info packet\n");
             return -1;
@@ -260,13 +246,7 @@ DECL_DECODE_FN(timestamp)
 
     if (pkt[0] & 1) {
         /* cycle count section is present since the N bit in the header is 1'b1 */
-        for (i = 0; i < 3; i++) {
-            data = pkt[index++];
-            count |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 3, &count);
     }
 
     LOGD("[timestemp] timestamp = %llu, cycle count = %d, nr_replace = %d\n", ts, count, nr_replace);
@@ -336,13 +316,7 @@ DECL_DECODE_FN(cc_format_1)
     unsigned int commit = 0, count = 0;
 
     if (!COMMOPT(&(stream->tracer))) {
-        for (i = 0; i < 4; i++) {
-            data = pkt[index++];
-            commit |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 4, &commit);
         if (i >= 4) {
             LOGE("More than 4 bytes of the commit section in the cycle count format 1 packet");
             return -1;
@@ -351,13 +325,7 @@ DECL_DECODE_FN(cc_format_1)
     }
 
     if (!u_bit) {
-        for (i = 0; i < 3; i++) {
-            data = pkt[index++];
-            count |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 3, &count);
         if (i >= 3) {
             LOGE("More than 3 bytes of the cycle count section in the cycle count format 1 packet");
             return -1;
@@ -456,13 +424,8 @@ DECL_DECODE_FN(cancel)
 
     if (!(pkt[index] & 0x10)) {
         /* cancle format 1 */
-        for (index = 1, i = 0; i < 4; i++) {
-            data = pkt[index++];
-            cancel |= (data & ~c_bit) << (7 * i);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        index = 1;
+        i = takeleb128(pkt, &index, 4, &cancel);
         if (i >= 4) {
             LOGE("More than 4 bytes of the cancel section in the cancel format 1 packet");
             return -1;
@@ -528,17 +491,11 @@ DECL_DECODE_FN(mispredict)
 
 DECL_DECODE_FN(cond_inst_format_1)
 {
-    int index, i;
+    int index = 1, i;
     unsigned char data;
     unsigned int key = 0;
 
-    for (index = 1, i = 0; i < 4; i++) {
-        data = pkt[index++];
-        key |= (data & ~c_bit) << (7 * i);
-        if (!(data & c_bit)) {
-            break;
-        }
-    }
+    i = takeleb128(pkt, &index, 4, &key);
     if (i >= 4) {
         LOGE("More than 4 bytes of the commit section in the commit packet");
         return -1;
@@ -588,7 +545,7 @@ DECL_DECODE_FN(cond_result_format_1)
 {
     int index = 0, nr_payloads, payload, i;
     unsigned char data;
-    unsigned int CI, RESULT, KEY;
+    unsigned int CI, RESULT, KEY, keytop;
 
     nr_payloads = (pkt[index++] & 0x4)? 1: 2;
 
@@ -596,13 +553,9 @@ DECL_DECODE_FN(cond_result_format_1)
         CI = (payload == 0)? (pkt[0] & 0x1): ((pkt[1] & 0x2) >> 1),
         RESULT = pkt[index] & 0x0f;
         KEY = (pkt[index] >> 4) & 0x7;
-        for (index++, i = 0; i < 5; i++) {
-            data = pkt[index++];
-            KEY |= (data & ~c_bit) << (7 * i + 3);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        index++;
+        i = takeleb128(pkt, &index, 5, &keytop);
+        KEY |= keytop << 3;
         if (i >= 5) {
             LOGE("More than 5 payload bytes in the conditional result format 1 packet");
             return -1;
@@ -1182,7 +1135,7 @@ DECL_DECODE_FN(q)
     int index = 0, type, IS, count_unknown = 0, i;
     unsigned long long address;
     unsigned char data;
-    unsigned int COUNT;
+    unsigned int COUNT, counttop;
 
     type = pkt[index++] & 0x0f;
     switch (type) {
@@ -1249,13 +1202,8 @@ DECL_DECODE_FN(q)
 
     if (!count_unknown) {
         COUNT = 0;
-        for (i = 0; i < 5; i++) {
-            data = pkt[index++];
-            COUNT |= (data & ~c_bit) << (7 * i + 3);
-            if (!(data & c_bit)) {
-                break;
-            }
-        }
+        i = takeleb128(pkt, &index, 5, &counttop);
+        COUNT |= counttop << 3;
     }
 
     if (count_unknown) {
